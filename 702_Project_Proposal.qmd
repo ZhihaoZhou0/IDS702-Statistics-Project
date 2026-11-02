@@ -33,9 +33,9 @@ Data pull date: October 29, 2026
 
 #### 1 Research Question
 
-**Primary RQ:** Among U.S. adults, is nightly sleep duration associated with body mass index (BMI) after adjusting for age, physical activity, socioeconomic status, race/ethnicity, education, and smoking history, and does this association differ between men and women?
+**Primary RQ:** Among U.S. adults, is nightly sleep duration associated with body mass index (BMI) after adjusting for age, physical activity, income-to-poverty ratio, race/ethnicity, education, and smoking history, and does this association differ between men and women?
 
-**Backup RQ:** Among U.S. adults, is BMI associated with the odds of having been diagnosed with diabetes after adjusting for age, race/ethnicity, socioeconomic status, education, smoking history, and physical activity, and does this association differ between men and women?
+**Backup RQ:** Among U.S. adults, is BMI associated with the odds of having been diagnosed with diabetes after adjusting for age, race/ethnicity, income-to-poverty ratio, education, smoking history, and physical activity, and does this association differ between men and women?
 
 #### 2 Study Population
 
@@ -48,14 +48,14 @@ We use the `NHANES` R package, which contains 10,000 observations resampled from
 3.1 Primary Outcome(s)
 
 | Variable Name          | Description                                                                                      | Coding specification |
-|-----------------|-----------------------------------|--------------------|
+|------------------------|--------------------------------------------------------------------------------------------------|----------------------|
 | BMI                    | Body mass index, calculated from measured weight and height                                      | Continuous, kg/m²    |
 | Diabetes *(backup RQ)* | Whether the participant has been told by a doctor or health professional that they have diabetes | Factor: No, Yes      |
 
 3.2 Primary Independent Variable(s)
 
 | Variable Name     | Description                                                                       | Coding specification |
-|-----------------|-----------------------------------|--------------------|
+|-------------------|-----------------------------------------------------------------------------------|----------------------|
 | SleepHrsNight     | Self-reported number of hours of sleep usually obtained on weeknights or workdays | Integer, hours       |
 | Gender            | Gender of the participant (effect modifier; interaction with sleep duration)      | Factor: female, male |
 | BMI *(backup RQ)* | Body mass index (primary exposure for the backup RQ)                              | Continuous, kg/m²    |
@@ -63,7 +63,7 @@ We use the `NHANES` R package, which contains 10,000 observations resampled from
 3.3 Additional Variables of Interest (including potential confounders)
 
 | Variable Name | Description                                                                                              | Coding specification                                                       |
-|-----------------|-----------------------------------|--------------------|
+|---------------|----------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------|
 | Age           | Age of the participant at the time of screening                                                          | Integer, years (ages 80+ recorded as 80)                                   |
 | PhysActive    | Whether the participant does moderate- or vigorous-intensity sports, fitness, or recreational activities | Factor: No, Yes                                                            |
 | Poverty       | Ratio of family income to the federal poverty guidelines; smaller values indicate more poverty           | Continuous, 0--5 (values above 5 coded as 5)                               |
@@ -99,7 +99,7 @@ where:
 -   $\text{Sleep}^c_i$ is hours of sleep per night centered at 7 hours ($\text{Sleep}_i - 7$).
 -   $\text{Age}^c_i$ is age in years centered at 50 ($\text{Age}_i - 50$).
 -   $\text{Male}_i$ = 1 if participant $i$ is male, 0 if female (reference).
--   $\beta_0$ is the expected BMI for a female, White participant with an 8th-grade education who is 50 years old, sleeps 7 hours, is not physically active, has not smoked 100 cigarettes, and has a poverty ratio of 0.
+-   $\beta_0$ is the expected BMI for a female, White participant with an 8th-grade education who is 50 years old, sleeps 7 hours, is not physically active, has not smoked 100 cigarettes, and has a poverty ratio of 0. Because a poverty ratio of 0 (no family income) is rare, $\beta_0$ is not directly interpretable on its own.
 -   $\beta_1$ is the expected change in BMI for each additional hour of sleep among women, holding all other variables constant.
 -   $\beta_2$ is the expected difference in BMI between men and women who sleep 7 hours, holding all other variables constant.
 -   $\beta_3$ is the difference in the sleep--BMI slope between men and women; the slope for men is $\beta_1 + \beta_3$.
@@ -121,7 +121,7 @@ where $Y_i \sim \text{Bernoulli}(p_i)$, $p_i = P(\text{Diabetes}_i = \text{Yes})
 
 4.2 Rationale for the statistical model
 
-We will use multiple linear regression to examine the association between sleep duration and BMI, a continuous outcome. For the backup question, we will use logistic regression because diabetes diagnosis is binary (Yes/No). This model allows us to estimate how the odds of diabetes vary with BMI while adjusting for the other variables.
+We will use multiple linear regression to examine the association between sleep duration and BMI, a continuous outcome. For the backup question, we will use logistic regression because diabetes diagnosis is binary (Yes/No); a linear model could produce predicted probabilities outside \[0, 1\], so we instead model the log-odds of diabetes through the logit link. This model allows us to estimate how the odds of diabetes vary with BMI while adjusting for the other variables.
 
 Each model will include an interaction between the primary exposure and gender to assess whether the association differs between men and women. We will center sleep duration at 7 hours so that the gender coefficient in the primary model compares men and women who report 7 hours of sleep. In the backup model, centering BMI at 25 kg/m² makes the gender coefficient a comparison at the overweight threshold. Age will be centered at 50 years in both models.
 
@@ -141,13 +141,13 @@ We will plot residuals against fitted values and each continuous predictor (slee
 
 We will assess the independence assumption using the sampling design and data preparation steps. Removing duplicate participant IDs prevents repeated records for the same person, although this step alone does not establish independence.
 
-We will check variance inflation factors (VIF) for multicollinearity. Values above 5 will prompt us to examine which predictors overlap; values above 10 will prompt a closer review of whether the model can distinguish their associations with BMI. We will examine the residuals-versus-leverage plot and Cook\'s distance for influential observations. Cook\'s distance values above 0.5 will be flagged for inspection, with particular attention to values above 1. We will check flagged records for data errors and compare estimates with and without them, rather than remove them solely because they exceed a threshold.
+We will check variance inflation factors (VIF) for multicollinearity. Values above 5 will prompt us to examine which predictors overlap; values above 10 will prompt a closer review of whether the model can distinguish their associations with BMI. We will examine the residuals-versus-leverage plot and Cook's distance for influential observations. Cook's distance values above 0.5 will be flagged for inspection, with particular attention to values above 1. We will check flagged records for data errors and compare estimates with and without them, rather than remove them solely because they exceed a threshold.
 
 We will report adjusted R² and use a nested F test to compare models with and without the sleep × gender interaction.
 
 **Logistic regression.**
 
-We will use partial residual plots to assess whether BMI, age, and poverty ratio have approximately linear relationships with the log-odds of diabetes. We will assess independence and multicollinearity as described above. An influence plot showing hat values, studentized residuals, and Cook\'s distance will help identify observations for further inspection. We will compare estimates with and without influential observations to see whether the conclusions depend on a small number of participants.
+We will use partial residual plots to assess whether BMI, age, and poverty ratio have approximately linear relationships with the log-odds of diabetes. We will assess independence and multicollinearity as described above. An influence plot showing hat values, studentized residuals, and Cook's distance will help identify observations for further inspection. We will compare estimates with and without influential observations to see whether the conclusions depend on a small number of participants.
 
 We will use the Hosmer--Lemeshow test as one check of model fit. Because its result can depend on sample size and how predicted probabilities are grouped, we will consider it alongside the other diagnostics. We will use a likelihood ratio test to assess the BMI × gender interaction and report AIC for models with and without that term.
 
