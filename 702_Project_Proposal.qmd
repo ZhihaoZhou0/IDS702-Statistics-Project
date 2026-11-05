@@ -80,7 +80,7 @@ We use the `NHANES` R package, which contains 10,000 observations resampled from
 
 We will first examine the structure of the NHANES dataset and focus on adult participants aged 20 and older. For the primary research question, we will summarize the distribution of BMI using a histogram and report descriptive statistics, including the mean, standard deviation, median, interquartile range, minimum, and maximum.
 
-To explore the relationship between sleep duration and BMI, we will calculate and plot mean BMI across reported sleep durations separately for men and women. Differences in these descriptive patterns may suggest potential effect modification by gender, which will be evaluated in the subsequent regression analysis. We will also present a "Table 1" summarizing selected participant characteristics by gender, including age, BMI, sleep duration, physical activity, and diabetes prevalence.
+To explore the relationship between sleep duration and BMI, we will calculate and plot mean BMI across reported sleep durations separately for men and women. Differences in these descriptive patterns may suggest potential effect modification by gender, which will be evaluated in the subsequent regression analysis. We will also present a "Table 2" summarizing selected participant characteristics by gender, including age, BMI, sleep duration, physical activity, and diabetes prevalence.
 
 For the backup research question, we will report the proportion of participants with a self-reported diabetes diagnosis and compare BMI distributions between participants with and without diabetes using side-by-side boxplots grouped by gender.
 
@@ -390,7 +390,7 @@ We will first use `glimpse()` to check the structure of the data. We will count 
 
 Our main outcome is binary. We will report the overall number and percentage of flights that departed at least 15 minutes late, using a summary table and a bar chart. We will then calculate delay rates for morning, afternoon, and evening flights. A second plot will compare these three periods. We will also compare departure-delay rates by airline and departure period to look for possible differences between airlines. We will show the number of flights in each group so that small groups are easy to identify.
 
-For additional context, we will summarize flight distance, scheduled departure period, day of week, and month. For the backup question, we may examine the arrival-delay rate by distance group. All EDA graphs will be made in R. The plots will describe the data only; they will not test our research questions or establish causation.
+For additional context, we will report the mean flight distance and summarize the number of eligible flights across scheduled departure periods. We will also examine differences in departure-delay rates across the five most frequent reporting airlines. All EDA graphs will be made in R. The plots will describe the data only; they will not test our research questions or establish causation.
 
 ##### 4.2 Statistical Model
 
