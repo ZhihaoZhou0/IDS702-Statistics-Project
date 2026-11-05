@@ -320,69 +320,387 @@ The boxplots compare BMI distributions between participants with and without a r
 
 ------------------------------------------------------------------------
 
-Project Title:
+**Project Title:** Flight Departure Delays at Raleigh–Durham International Airport: Does Departure Time Matter?
 
-Data citation (use APA formatting or something similar):
+**Data citation:** U.S. Department of Transportation, Bureau of Transportation Statistics. (2026). *Reporting Carrier On-Time Performance (1987–present): July and August 2026* \[Data set\]. TranStats. https://www.transtats.bts.gov/DL_SelectFields.aspx?gnoyr_VQ=FGJ
 
-Original data collection date (when was the dataset published?):
+**Direct data files:**
 
-Data pull date (when did you download the data you will use?):
+- July 2026: https://transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2026_7.zip
+- August 2026: https://transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2026_8.zip
+
+**Original data collection date:** July 1–August 31, 2026 (the dates of the reported flight operations). The monthly records were released after the flights took place.
+
+**Data pull date:** Nov. 5th, 2026
 
 ------------------------------------------------------------------------
 
 #### 1 Research Question
 
-*Write the research question you are interested in investigating in your analysis. Consult [this helpful guide](https://writingcenter.gmu.edu/writing-resources/research-based-writing/how-to-write-a-research-question) for writing a good research question. Go beyond "is there a relationship between X and Y" to incorporate some statistical complexity, e.g., "is there a relationship between X and Y and does this relationship change over time?" You may also want to provide a second RQ as a backup and I can provide feedback on both options. Remember that you are required to use an inferential research question.*
+**Primary RQ:** Among domestic flights departing from Raleigh–Durham International Airport (RDU) in July and August 2026, is the scheduled departure period (morning, afternoon, or evening) associated with the odds of leaving at least 15 minutes late, after adjusting for airline, flight distance, day of week, and month? Does this association differ by airline?
+
+**Backup RQ:** Among domestic flights departing from RDU that reach their destination without being diverted, is flight distance associated with the odds of arriving at least 15 minutes late, after adjusting for airline, departure period, day of week, and month? Does this association differ by departure period?
 
 #### 2 Study Population
 
-Describe the observation units and how the data were collected.
+The observation unit is one scheduled, nonstop domestic flight departing from Raleigh–Durham International Airport (RDU). The Bureau of Transportation Statistics (BTS), part of the U.S. Department of Transportation, collects monthly on-time performance data submitted by reporting airlines. The data include scheduled and actual flight times, airlines, airports, delays, cancellations, and flight distance. These are operational records, not a random survey of passengers or flights from every airline worldwide.
+
+We plan to use the July and August 2026 files, which are the two most recent complete months available at the time of this proposal. We will keep flights with RDU as the origin airport. For our primary analysis of departure delays, we will include flights that operated and have a recorded departure delay indicator. We will compare flights scheduled in the morning (5:00–11:59 a.m.), afternoon (12:00–5:59 p.m.), and evening (6:00–11:59 p.m.). Flights scheduled between midnight and 4:59 a.m. will not be part of this comparison because they are outside these three study periods. We will report how many flights are excluded for each reason.
+
+We will first check the number of RDU flights, the available variables, and missing values using the EDA below. The original monthly BTS files have far more than the required ten variables and contain both numeric and categorical information. We will verify that the RDU subset meets the minimum of 300 observations before finalizing our proposal. We will not fit statistical models at this stage.
 
 #### 3 Outcomes, Exposures, and Additional Variables of Interest
 
-*Add rows as necessary. Use the data dictionary for the coding specifications, e.g., 1=Diagnosed with CHD, 0=No diagnosis*
-
-3.1 Primary Outcome(s)
+##### 3.1 Primary Outcome(s)
 
 | Variable Name | Description | Coding specification |
-|---------------|-------------|----------------------|
-|               |             |                      |
+|:-----------------------|:-----------------------|:-----------------------|
+| `DepDel15` | Whether the flight departed at least 15 minutes after its scheduled departure time | Binary: 1 = delayed by 15 minutes or more; 0 = not delayed by 15 minutes |
+| `ArrDel15` *(backup RQ)* | Whether the flight arrived at least 15 minutes late | Binary: 1 = delayed by 15 minutes or more; 0 = not delayed by 15 minutes |
 
-3.2 Primary Independent Variable(s)
-
-| Variable Name | Description | Coding specification |
-|---------------|-------------|----------------------|
-|               |             |                      |
-
-3.3 Additional Variables of Interest (including potential confounders)
+##### 3.2 Primary Independent Variable(s)
 
 | Variable Name | Description | Coding specification |
-|---------------|-------------|----------------------|
-|               |             |                      |
+|:-----------------------|:-----------------------|:-----------------------|
+| `CRSDepTime` | Scheduled departure time, used to create a departure-period variable | Local time in HHMM format; morning = 05:00–11:59; afternoon = 12:00–17:59; evening = 18:00–23:59. Morning is the reference period. |
+| `Reporting_Airline` | Operating airline, used as a possible effect modifier | Categorical airline code; one airline will be the reference group. We will check group sizes before selecting the reference. |
+| `Distance` *(backup RQ)* | Nonstop distance between the origin and destination airports | Continuous, miles; we plan to express distance in units of 100 miles |
+
+##### 3.3 Additional Variables of Interest (including potential confounders)
+
+| Variable Name | Description | Coding specification |
+|:-----------------------|:-----------------------|:-----------------------|
+| `Distance` | Distance flown, used to adjust for route length in the primary model | Continuous, miles; divided by 100 for interpretation |
+| `DayOfWeek` | Day of the week when the flight was scheduled | Categorical: 1 = Monday through 7 = Sunday |
+| `Month` | Month of the scheduled flight | Categorical: 7 = July; 8 = August |
+| `Dest` | Destination airport | Categorical three-letter airport code; used in descriptive checks and possibly sensitivity analyses |
+| `Cancelled` | Whether the flight was canceled | Binary: 1 = canceled; 0 = not canceled; canceled flights do not have an observed departure delay |
+| `Diverted` | Whether the flight was diverted | Binary: 1 = diverted; 0 = not diverted; used to define the backup arrival-delay sample |
+| `DepDelay` | Difference between actual and scheduled departure times | Continuous, minutes; negative values mean early departure |
+| `ArrDelay` | Difference between actual and scheduled arrival times | Continuous, minutes; may be missing for canceled or diverted flights |
+| `FlightDate` | Calendar date of the flight | Date; useful for checking daily patterns and possible dependence among flights |
+| `CRSElapsedTime` | Scheduled length of the flight | Continuous, minutes; available for descriptive checks |
 
 #### 4 Statistical Analysis Plan
 
-4.1 Exploratory Data Analysis
+##### 4.1 Exploratory Data Analysis
 
-*Detail how you will investigate the data, including basic characteristics of the outcome and independent variable(s) of interest (e.g., "The outcome is continuous, so we will generate a histogram of the outcome. Then, we will generate a stacked histogram/scatter plot to explore the relationship between the outcome and the independent variable")*
+We will first use `glimpse()` to check the structure of the data. We will count the number of flights departing from RDU, look for missing values, and report how many flights were canceled or scheduled outside our three departure periods. This will help us understand which flights can be included in the departure-delay analysis.
 
-4.2 Statistical Model (write in mathematical notation and define each term)
+Our main outcome is binary. We will report the overall number and percentage of flights that departed at least 15 minutes late, using a summary table and a bar chart. We will then calculate delay rates for morning, afternoon, and evening flights. A second plot will compare these three periods. We will also compare departure-delay rates by airline and departure period to look for possible differences between airlines. We will show the number of flights in each group so that small groups are easy to identify.
 
-4.2 Rationale for the statistical model (why are you choosing to use this type of model? What about your data structure/characteristics are you accommodating with this model type?)
+For additional context, we will summarize flight distance, scheduled departure period, day of week, and month. For the backup question, we may examine the arrival-delay rate by distance group. All EDA graphs will be made in R. The plots will describe the data only; they will not test our research questions or establish causation.
 
-4.3 Model Assumptions
+##### 4.2 Statistical Model
 
-4.4 Model Assessment (how will you assess the assumptions and model performance?)
+**Primary RQ (multiple logistic regression).** Let $Y_i=1$ if flight $i$ departed at least 15 minutes late, and $Y_i=0$ otherwise. We will model $Y_i\sim\operatorname{Bernoulli}(p_i)$, where $p_i=P(Y_i=1)$. We plan to fit:
+
+$$\begin{aligned}
+\log\!\left(\frac{p_i}{1-p_i}\right)
+={}& \beta_0 + \beta_1\mathrm{Afternoon}_i + \beta_2\mathrm{Evening}_i\\
+&+\sum_{c=1}^{C-1}\gamma_c\mathrm{Airline}_{ic}\\
+&+\sum_{c=1}^{C-1}\delta_{Ac}\big(\mathrm{Afternoon}_i\times\mathrm{Airline}_{ic}\big)\\
+&+\sum_{c=1}^{C-1}\delta_{Ec}\big(\mathrm{Evening}_i\times\mathrm{Airline}_{ic}\big)\\
+&+\beta_3\mathrm{Distance100}_i + \beta_4\mathrm{August}_i\\
+&+\sum_{d=2}^{7}\theta_d\mathrm{Day}_{id}.
+\end{aligned}$$
+
+where:
+
+- $\mathrm{Afternoon}_i$ and $\mathrm{Evening}_i$ equal 1 when flight $i$ is scheduled in that period, and 0 otherwise. Morning is the reference period.
+- $\mathrm{Airline}_{ic}$ is an indicator for operating airline $c$, with one airline as the reference. $C$ is the number of airline groups kept in the model.
+- $\delta_{Ac}$ and $\delta_{Ec}$ are interaction coefficients. They tell us whether the association between departure period and delays differs by airline.
+- $\mathrm{Distance100}_i$ is the scheduled nonstop distance in hundreds of miles.
+- $\mathrm{August}_i$ is 1 for August and 0 for July.
+- $\mathrm{Day}_{id}$ indicates the day of week, with Monday as the reference.
+
+For the reference airline, $e^{\beta_1}$ compares the odds of a delay for afternoon versus morning flights, holding the other variables constant. Similarly, $e^{\beta_2}$ compares evening with morning. For another airline $c$, the corresponding odds ratio for evening versus morning is $e^{\beta_2+\delta_{Ec}}$. We will not interpret these as causal effects.
+
+**Backup RQ (logistic regression).** We would model the chance of arriving at least 15 minutes late among flights with an observed arrival-delay indicator. The main predictor would be distance in hundreds of miles, with an interaction between distance and departure period, adjusting for airline, day of week, and month.
+
+##### 4.2 Rationale for the Statistical Model
+
+We chose logistic regression because the main outcome has two categories: a flight either departed at least 15 minutes late or it did not. Logistic regression models the log-odds of a delay and gives predicted probabilities between 0 and 1. This makes it more suitable than a linear regression for a binary outcome.
+
+We will include airline, flight distance, day of week, and month because flight schedules and operating conditions differ across these groups. We will include an interaction between departure period and airline to see whether the morning-to-evening pattern is the same for all airlines. Before fitting the final model, we will check whether each airline has enough flights in the three periods. If some groups have very few flights, we may combine small airline groups and explain that choice in the final report.
+
+##### 4.3 Model Assumptions
+
+We assume (1) **a binary outcome**: each observed flight is classified as delayed or not delayed; (2) **linearity in the log-odds for continuous predictors**: flight distance has an approximately linear relationship with the log-odds of departure delay; (3) **no perfect separation**: no predictor group perfectly predicts the outcome; and (4) **limited dependence among observations**: flights are recorded individually, but flights from the same airline or on the same date may share operating conditions. We will also assess collinearity among predictors. Logistic regression does not require normally distributed errors or equal error variance.
+
+Because these are observational data, unmeasured factors such as weather, airport congestion, arriving aircraft, crew availability, or flight-specific problems may affect the results. Also, the departure-delay model only covers operated flights with an observed delay indicator; canceled flights will be described separately rather than treated as on-time flights.
+
+##### 4.4 Model Assessment
+
+After the proposal stage, we will examine the number of observations and delays in each airline-by-period group. We will check for sparse groups and possible separation. We will assess whether flight distance is approximately linear on the log-odds scale, using an appropriate diagnostic plot or a more flexible functional form if needed. We will also examine multicollinearity and influential observations.
+
+We will compare a model with the departure-period-by-airline interaction to a model without it using a likelihood ratio test, and we will consider AIC and overall model fit. We will review predicted probabilities and calibration rather than rely only on a classification accuracy number. Because several flights may be affected by the same day's conditions, we will consider a sensitivity analysis that accounts for clustering by flight date.
+
+In the final report, we will present the exponentiated model coefficients (odds ratios), their 95% confidence intervals, standard errors with the scale clearly stated, and p-values. We will also explain the limitations of studying only one airport and two summer months. We will not fit any models for this proposal.
 
 \newpage
 
 #### Exploratory Data Analysis
 
-*First, provide a snapshot of the data using the glimpse function or something similar. Then, present your EDA according to your SAP above. At minimum, you should present basic characteristics of your outcome alone (descriptive statistics and a plot) and at least one key relationship of interest, but the EDA should not exceed 3 pages. It may be useful to present a "Table 1" that gives descriptive statistics for several variables of interest. You are not required to complete data cleaning for the EDA.*
+*The following R chunks load the official July and August 2026 monthly files, keep flights departing RDU, and produce descriptive tables and figures. No statistical models are fitted. This code needs internet access on its first run and the R packages listed below.*
 
 ```{r}
+#| label: setup-rdu-data
+library(data.table)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(scales)
 
+# Download data only once, then use local cached ZIP files.
+data_dir <- file.path("data", "bts_2026")
+dir.create(data_dir, showWarnings = FALSE, recursive = TRUE)
+
+fields_needed <- c(
+  "Year", "Month", "DayofMonth", "DayOfWeek", "FlightDate",
+  "Reporting_Airline", "Flight_Number_Reporting_Airline",
+  "Origin", "Dest", "CRSDepTime", "DepTime", "DepDelay",
+  "DepDel15", "Cancelled", "Diverted", "Distance",
+  "CRSElapsedTime", "ArrDel15", "ArrDelay"
+)
+
+read_rdu_month <- function(month_number) {
+  file_name <- paste0(
+    "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2026_",
+    month_number, ".zip"
+  )
+  zip_path <- file.path(data_dir, file_name)
+  url <- paste0("https://transtats.bts.gov/PREZIP/", file_name)
+
+  if (!file.exists(zip_path)) {
+    download.file(url, destfile = zip_path, mode = "wb", quiet = TRUE)
+  }
+
+  zip_contents <- unzip(zip_path, list = TRUE)$Name
+  csv_files <- zip_contents[grepl("\\.csv$", zip_contents, ignore.case = TRUE)]
+  if (length(csv_files) < 1) {
+    stop("No CSV found in BTS ZIP for month ", month_number)
+  }
+
+  # Work with one month's data at a time to keep memory use lower.
+  extract_dir <- file.path(tempdir(), paste0("bts_month_", month_number))
+  dir.create(extract_dir, showWarnings = FALSE, recursive = TRUE)
+  csv_path <- unzip(zip_path, files = csv_files[1], exdir = extract_dir)[1]
+  
+  # Check that the required columns exist
+  actual_fields <- names(
+    data.table::fread(csv_path, nrows = 0)
+  )
+  
+  missing_fields <- setdiff(fields_needed, actual_fields)
+  
+  if (length(missing_fields) > 0) {
+    stop(
+      "Missing BTS columns: ",
+      paste(missing_fields, collapse = ", ")
+    )
+  }
+  
+  flight_data <- data.table::fread(
+    csv_path, select = fields_needed,
+    na.strings = c("", "NA"), showProgress = FALSE
+  )
+  unlink(extract_dir, recursive = TRUE)
+
+  as_tibble(flight_data) %>%
+    filter(Origin == "RDU")
+}
+
+rdu_all <- bind_rows(lapply(c(7, 8), read_rdu_month))
+
+if (nrow(rdu_all) < 300) {
+  stop("The RDU subset has fewer than 300 records; please review the source files.")
+}
+
+rdu_eda <- rdu_all %>%
+  mutate(
+    departure_hour = floor(as.numeric(CRSDepTime) / 100),
+    departure_period = case_when(
+      between(departure_hour, 5, 11) ~ "Morning",
+      between(departure_hour, 12, 17) ~ "Afternoon",
+      between(departure_hour, 18, 23) ~ "Evening",
+      TRUE ~ NA_character_
+    ),
+    departure_period = factor(
+      departure_period, levels = c("Morning", "Afternoon", "Evening")
+    )
+  )
+
+rdu_delay <- rdu_eda %>%
+  filter(Cancelled == 0,
+         !is.na(DepDel15),
+         !is.na(departure_period)) %>%
+  mutate(delayed_15 = as.integer(DepDel15))
+
+if (nrow(rdu_delay) < 300) {
+  stop("The eligible RDU delay sample has fewer than 300 flights.")
+}
+# Check the final sample
+cat("Total RDU flights:", nrow(rdu_all), "\n")
+cat("Eligible flights:", nrow(rdu_delay), "\n")
+cat("Number of variables:", ncol(rdu_all), "\n")
+
+# Check missing values
+colSums(is.na(
+  rdu_delay[, c(
+    "DepDel15",
+    "CRSDepTime",
+    "Reporting_Airline",
+    "Distance",
+    "DayOfWeek",
+    "Month"
+  )]
+))
+
+# Check airline and departure-period groups
+rdu_delay %>%
+  count(Reporting_Airline, departure_period) %>%
+  print(n = Inf)
 ```
+
+```{r}
+#| label: tbl-rdu-snapshot
+# Snapshot of the imported data and the variables in our study.
+glimpse(
+  rdu_all %>%
+    select(FlightDate, Month, DayOfWeek, Reporting_Airline,
+           Origin, Dest, CRSDepTime, DepDel15, DepDelay,
+           Distance, Cancelled, Diverted),
+  width = 65
+)
+```
+
+```{r}
+#| label: tbl-rdu-overview
+#| tbl-cap: "Data overview for flights departing from RDU, July–August 2026"
+overview <- tibble(
+  Measure = c(
+    "All reported RDU departures",
+    "Canceled flights",
+    "Flights outside the three study periods",
+    "Operated flights with an observed delay outcome and study period",
+    "Number of columns in the downloaded working data"
+  ),
+  Value = c(
+    nrow(rdu_all),
+    sum(rdu_eda$Cancelled == 1, na.rm = TRUE),
+    sum(is.na(rdu_eda$departure_period)),
+    nrow(rdu_delay),
+    ncol(rdu_all)
+  )
+)
+knitr::kable(overview, format.args = list(big.mark = ","))
+```
+
+```{r}
+#| label: tbl-rdu-delay-summary
+#| tbl-cap: "Departure-delay summary for eligible RDU flights"
+delay_overview <- rdu_delay %>%
+  summarise(
+    `Flights included` = n(),
+    `Flights delayed 15+ minutes` = sum(delayed_15 == 1),
+    `Delayed flights (%)` = 100 * mean(delayed_15 == 1),
+    `Median departure delay (minutes)` = median(DepDelay, na.rm = TRUE),
+    `Mean flight distance (miles)` = mean(Distance, na.rm = TRUE)
+  )
+knitr::kable(delay_overview, digits = 1, format.args = list(big.mark = ","))
+```
+
+```{r}
+#| label: fig-rdu-delay-outcome
+#| fig-cap: "Departure-delay status among eligible flights from RDU, July–August 2026"
+#| fig-width: 5.9
+#| fig-height: 2.9
+#| fig-align: center
+
+rdu_delay %>%
+  mutate(`Departure status` = if_else(
+    delayed_15 == 1, "Delayed 15+ min", "Not delayed 15+ min"
+  )) %>%
+  count(`Departure status`) %>%
+  ggplot(aes(x = `Departure status`, y = n, fill = `Departure status`)) +
+  geom_col(width = 0.65, show.legend = FALSE) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(x = NULL, y = "Number of flights") +
+  theme_minimal(base_size = 11)
+```
+
+```{r}
+#| label: tbl-rdu-time-period
+#| tbl-cap: "Departure delays by scheduled time of day at RDU"
+period_summary <- rdu_delay %>%
+  group_by(departure_period) %>%
+  summarise(
+    `Number of flights` = n(),
+    `Delayed flights` = sum(delayed_15 == 1),
+    `Delay rate (%)` = 100 * mean(delayed_15 == 1),
+    .groups = "drop"
+  )
+
+period_display <- period_summary %>%
+  rename(`Scheduled departure period` = departure_period)
+knitr::kable(period_display, digits = 1,
+             format.args = list(big.mark = ","))
+```
+
+```{r}
+#| label: fig-rdu-period
+#| fig-cap: "Percentage of flights departing 15 or more minutes late, by scheduled departure period"
+#| fig-width: 5.9
+#| fig-height: 2.9
+#| fig-align: center
+
+ggplot(period_summary,
+       aes(x = departure_period, y = `Delay rate (%)`)) +
+  geom_col(width = 0.65, fill = "steelblue") +
+  geom_text(aes(label = paste0(round(`Delay rate (%)`, 1), "%")),
+            vjust = -0.35, size = 3.4) +
+  scale_y_continuous(limits = c(0, NA),
+                     expand = expansion(mult = c(0, 0.15))) +
+  labs(x = "Scheduled departure period", y = "Flights delayed 15+ minutes (%)") +
+  theme_minimal(base_size = 11)
+```
+
+```{r}
+#| label: fig-rdu-airlines
+#| fig-cap: "Departure-delay rates by time of day for the five most frequent reporting airlines at RDU"
+#| fig-width: 6.0
+#| fig-height: 3.6
+#| fig-align: center
+
+# Display the five most common operating airlines to keep the plot readable.
+top_airlines <- rdu_delay %>%
+  count(Reporting_Airline, sort = TRUE) %>%
+  slice_head(n = 5) %>%
+  pull(Reporting_Airline)
+
+airline_period <- rdu_delay %>%
+  filter(Reporting_Airline %in% top_airlines) %>%
+  group_by(Reporting_Airline, departure_period) %>%
+  summarise(
+    `Flights` = n(),
+    `Delay rate (%)` = 100 * mean(delayed_15 == 1),
+    .groups = "drop"
+  )
+
+ggplot(airline_period,
+       aes(x = departure_period, y = `Delay rate (%)`,
+           color = Reporting_Airline, group = Reporting_Airline)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 2) +
+  labs(x = "Scheduled departure period",
+       y = "Flights delayed 15+ minutes (%)",
+       color = "Operating airline") +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "bottom")
+```
+
+The EDA will show the actual number of eligible flights and the observed departure-delay rates after the official data files are downloaded and the QMD is rendered. Differences in these descriptive rates may suggest a pattern worth examining, but they will not by themselves establish a statistically significant difference or a causal relationship.
 
 ## Team Charter
 
