@@ -1,6 +1,6 @@
 ---
 title: "IDS 702 Project Proposal"
-author: "Team member names here"
+author: "Andy Zhou; Shenghuan Wang; Chien Zhang"
 format: pdf
 editor: visual
 execute:
@@ -11,7 +11,7 @@ execute:
 
 ## Project Proposal/Statistical Analysis Plan
 
-Link to your team's Github Repo:
+Link to your team's Github Repo: <https://github.com/ZhihaoZhou0/IDS702-Statistics-Project>
 
 ### Dataset Option 1
 
@@ -47,75 +47,73 @@ We use the `NHANES` R package, which contains 10,000 observations resampled from
 
 3.1 Primary Outcome(s)
 
-| Variable Name          | Description                                                                                      | Coding specification |
-|------------------------|--------------------------------------------------------------------------------------------------|----------------------|
-| BMI                    | Body mass index, calculated from measured weight and height                                      | Continuous, kg/m²    |
-| Diabetes *(backup RQ)* | Whether the participant has been told by a doctor or health professional that they have diabetes | Factor: No, Yes      |
+| Variable Name | Description | Coding specification |
+|------------------------|------------------------|------------------------|
+| BMI | Body mass index, calculated from measured weight and height | Continuous, kg/m² |
+| Diabetes *(backup RQ)* | Whether the participant has been told by a doctor or health professional that they have diabetes | Factor: No, Yes |
 
 3.2 Primary Independent Variable(s)
 
-| Variable Name     | Description                                                                       | Coding specification |
-|-------------------|-----------------------------------------------------------------------------------|----------------------|
-| SleepHrsNight     | Self-reported number of hours of sleep usually obtained on weeknights or workdays | Integer, hours       |
-| Gender            | Gender of the participant (effect modifier; interaction with sleep duration)      | Factor: female, male |
-| BMI *(backup RQ)* | Body mass index (primary exposure for the backup RQ)                              | Continuous, kg/m²    |
+| Variable Name | Description | Coding specification |
+|------------------------|------------------------|------------------------|
+| SleepHrsNight | Self-reported number of hours of sleep usually obtained on weeknights or workdays | Integer, hours |
+| Gender | Gender of the participant (effect modifier; interaction with sleep duration) | Factor: female, male |
+| BMI *(backup RQ)* | Body mass index (primary exposure for the backup RQ) | Continuous, kg/m² |
 
 3.3 Additional Variables of Interest (including potential confounders)
 
-| Variable Name | Description                                                                                              | Coding specification                                                       |
-|---------------|----------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------|
-| Age           | Age of the participant at the time of screening                                                          | Integer, years (ages 80+ recorded as 80)                                   |
-| PhysActive    | Whether the participant does moderate- or vigorous-intensity sports, fitness, or recreational activities | Factor: No, Yes                                                            |
-| Poverty       | Ratio of family income to the federal poverty guidelines; smaller values indicate more poverty           | Continuous, 0--5 (values above 5 coded as 5)                               |
-| Race1         | Self-reported race/ethnicity                                                                             | Factor: Black, Hispanic, Mexican, White, Other                             |
-| Education     | Highest level of education completed                                                                     | Factor: 8th Grade, 9 - 11th Grade, High School, Some College, College Grad |
-| Smoke100      | Whether the participant has smoked at least 100 cigarettes in their lifetime                             | Factor: No, Yes                                                            |
+| Variable Name | Description | Coding specification |
+|------------------------|------------------------|------------------------|
+| Age | Age of the participant at the time of screening | Integer, years (ages 80+ recorded as 80) |
+| PhysActive | Whether the participant does moderate- or vigorous-intensity sports, fitness, or recreational activities | Factor: No, Yes |
+| Poverty | Ratio of family income to the federal poverty guidelines; smaller values indicate more poverty | Continuous, 0--5 (values above 5 coded as 5) |
+| Race1 | Self-reported race/ethnicity | Factor: Black, Hispanic, Mexican, White, Other |
+| Education | Highest level of education completed | Factor: 8th Grade, 9 - 11th Grade, High School, Some College, College Grad |
+| Smoke100 | Whether the participant has smoked at least 100 cigarettes in their lifetime | Factor: No, Yes |
 
 #### 4 Statistical Analysis Plan
 
 4.1 Exploratory Data Analysis
 
-The primary outcome, BMI, is continuous, so we will examine its distribution with a histogram and a boxplot. Because BMI is typically right-skewed, we will report the mean and standard deviation along with the median, interquartile range, minimum, and maximum. We will also examine the distribution of sleep duration with a bar chart, separately by gender. To explore the relationship between sleep duration and BMI, we will create a scatter plot (with jittering, since sleep hours are recorded as integers) with fitted linear trend lines and 95% confidence bands, colored by gender. Non-parallel trend lines for men and women would provide preliminary evidence for the sleep × gender interaction. We will also present a "Table 1" summarizing descriptive statistics for all variables of interest, stratified by gender.
+We will first examine the structure of the NHANES dataset and focus on adult participants aged 20 and older. For the primary research question, we will summarize the distribution of BMI using a histogram and report descriptive statistics, including the mean, standard deviation, median, interquartile range, minimum, and maximum.
 
-For the backup research question, the outcome (diabetes diagnosis) is binary, so we will report the count and proportion of participants with and without diabetes, and compare the distribution of BMI between the two groups using side-by-side boxplots, stratified by gender.
+To explore the relationship between sleep duration and BMI, we will calculate and plot mean BMI across reported sleep durations separately for men and women. Differences in these descriptive patterns may suggest potential effect modification by gender, which will be evaluated in the subsequent regression analysis. We will also present a "Table 1" summarizing selected participant characteristics by gender, including age, BMI, sleep duration, physical activity, and diabetes prevalence.
+
+For the backup research question, we will report the proportion of participants with a self-reported diabetes diagnosis and compare BMI distributions between participants with and without diabetes using side-by-side boxplots grouped by gender.
 
 4.2 Statistical Model
 
 **Primary RQ (multiple linear regression):**
 
-$$
-\begin{aligned}
+$$\begin{aligned}
 \text{BMI}_i = \; & \beta_0 + \beta_1 \text{Sleep}^c_i + \beta_2 \text{Male}_i + \beta_3 (\text{Sleep}^c_i \times \text{Male}_i) \\
 & + \beta_4 \text{Black}_i + \beta_5 \text{Hispanic}_i + \beta_6 \text{Mexican}_i + \beta_7 \text{OtherRace}_i \\
 & + \beta_8 \text{Edu911}_i + \beta_9 \text{HighSchool}_i + \beta_{10} \text{SomeCollege}_i + \beta_{11} \text{CollegeGrad}_i \\
 & + \beta_{12} \text{Age}^c_i + \beta_{13} \text{PhysActive}_i + \beta_{14} \text{Poverty}_i + \beta_{15} \text{Smoke100}_i + \varepsilon_i, \\
 & \varepsilon_i \overset{iid}{\sim} N(0, \sigma^2), \quad i = 1, \dots, n
-\end{aligned}
-$$
+\end{aligned}$$
 
 where:
 
--   $\text{BMI}_i$ is the body mass index (kg/m²) of participant $i$.
--   $\text{Sleep}^c_i$ is hours of sleep per night centered at 7 hours ($\text{Sleep}_i - 7$).
--   $\text{Age}^c_i$ is age in years centered at 50 ($\text{Age}_i - 50$).
--   $\text{Male}_i$ = 1 if participant $i$ is male, 0 if female (reference).
--   $\beta_0$ is the expected BMI for a female, White participant with an 8th-grade education who is 50 years old, sleeps 7 hours, is not physically active, has not smoked 100 cigarettes, and has a poverty ratio of 0. Because a poverty ratio of 0 (no family income) is rare, $\beta_0$ is not directly interpretable on its own.
--   $\beta_1$ is the expected change in BMI for each additional hour of sleep among women, holding all other variables constant.
--   $\beta_2$ is the expected difference in BMI between men and women who sleep 7 hours, holding all other variables constant.
--   $\beta_3$ is the difference in the sleep--BMI slope between men and women; the slope for men is $\beta_1 + \beta_3$.
--   $\beta_4$--$\beta_7$ are indicators for race/ethnicity (reference: White).
--   $\beta_8$--$\beta_{11}$ are indicators for education level (reference: 8th Grade).
--   $\beta_{12}$--$\beta_{15}$ are the coefficients for centered age (years), physical activity (1 = Yes), poverty ratio, and smoking history (1 = smoked at least 100 cigarettes).
--   $\varepsilon_i$ is the random error, assumed independent and normally distributed with mean 0 and constant variance $\sigma^2$.
+- $\text{BMI}_i$ is the body mass index (kg/m²) of participant $i$.
+- $\text{Sleep}^c_i$ is hours of sleep per night centered at 7 hours ($\text{Sleep}_i - 7$).
+- $\text{Age}^c_i$ is age in years centered at 50 ($\text{Age}_i - 50$).
+- $\text{Male}_i$ = 1 if participant $i$ is male, 0 if female (reference).
+- $\beta_0$ is the expected BMI for a female, White participant with an 8th-grade education who is 50 years old, sleeps 7 hours, is not physically active, has not smoked 100 cigarettes, and has a poverty ratio of 0. Because a poverty ratio of 0 (no family income) is rare, $\beta_0$ is not directly interpretable on its own.
+- $\beta_1$ is the expected change in BMI for each additional hour of sleep among women, holding all other variables constant.
+- $\beta_2$ is the expected difference in BMI between men and women who sleep 7 hours, holding all other variables constant.
+- $\beta_3$ is the difference in the sleep--BMI slope between men and women; the slope for men is $\beta_1 + \beta_3$.
+- $\beta_4$--$\beta_7$ are indicators for race/ethnicity (reference: White).
+- $\beta_8$--$\beta_{11}$ are indicators for education level (reference: 8th Grade).
+- $\beta_{12}$--$\beta_{15}$ are the coefficients for centered age (years), physical activity (1 = Yes), poverty ratio, and smoking history (1 = smoked at least 100 cigarettes).
+- $\varepsilon_i$ is the random error, assumed independent and normally distributed with mean 0 and constant variance $\sigma^2$.
 
 **Backup RQ (logistic regression):**
 
-$$
-\begin{aligned}
+$$\begin{aligned}
 \log\left(\frac{p_i}{1 - p_i}\right) = \; & \beta_0 + \beta_1 \text{BMI}^c_i + \beta_2 \text{Male}_i + \beta_3 (\text{BMI}^c_i \times \text{Male}_i) \\
 & + \beta_4 \text{Age}^c_i + \dots + \beta_{15} \text{PhysActive}_i
-\end{aligned}
-$$
+\end{aligned}$$
 
 where $Y_i \sim \text{Bernoulli}(p_i)$, $p_i = P(\text{Diabetes}_i = \text{Yes})$, and $\text{BMI}^c_i$ is BMI centered at 25 kg/m² (the threshold for overweight), so that $e^{\beta_2}$ is the odds ratio of diabetes for men versus women with a BMI of 25. The covariates and reference groups are the same as in the primary model. Exponentiated coefficients are interpreted as odds ratios; for example, $e^{\beta_1}$ is the multiplicative change in the odds of diabetes for each 1 kg/m² increase in BMI among women.
 
@@ -158,8 +156,163 @@ We will use the Hosmer--Lemeshow test as one check of model fit. Because its res
 *First, provide a snapshot of the data using the glimpse function or something similar. Then, present your EDA according to your SAP above. At minimum, you should present basic characteristics of your outcome alone (descriptive statistics and a plot) and at least one key relationship of interest, but the EDA should not exceed 3 pages. It may be useful to present a "Table 1" that gives descriptive statistics for several variables of interest. You are not required to complete data cleaning for the EDA.*
 
 ```{r}
-
+library(NHANES)
+library(dplyr)
+library(ggplot2)
+library(knitr)
 ```
+
+```{r}
+data("NHANES")
+
+# Restrict to adults aged 20+ and retain one record per ID
+nhanes_eda <- NHANES %>%
+  filter(Age >= 20) %>%
+  distinct(ID, .keep_all = TRUE)
+
+# Snapshot of variables relevant to our research questions
+nhanes_eda %>%
+  select(
+    BMI, SleepHrsNight, Gender, Age,
+    PhysActive, Poverty, Race1,
+    Education, Smoke100, Diabetes
+  ) %>%
+  glimpse(width = 55)
+```
+
+```{r}
+bmi_summary <- nhanes_eda %>%
+  summarise(
+    N = sum(!is.na(BMI)),
+    Mean = mean(BMI, na.rm = TRUE),
+    SD = sd(BMI, na.rm = TRUE),
+    Median = median(BMI, na.rm = TRUE),
+    IQR = IQR(BMI, na.rm = TRUE),
+    Min = min(BMI, na.rm = TRUE),
+    Max = max(BMI, na.rm = TRUE)
+  )
+
+knitr::kable(
+  bmi_summary,
+  digits = 2,
+  caption = "Descriptive Statistics of BMI Among U.S. Adults"
+)
+```
+
+```{r}
+#| fig-width: 5.5
+#| fig-height: 2.8
+#| fig-align: center
+
+ggplot(nhanes_eda, aes(x = BMI)) +
+  geom_histogram(
+    binwidth = 2,
+    fill = "steelblue",
+    color = "white"
+  ) +
+  labs(
+    title = "Distribution of BMI Among U.S. Adults",
+    x = "Body Mass Index (kg/m²)",
+    y = "Number of Participants"
+  ) +
+  theme_minimal()
+```
+
+Among the 4,654 adult participants, 4,609 had non-missing BMI measurements. The mean BMI was 28.90 kg/m² (SD = 6.81), while the median was 27.80 kg/m² (IQR = 8.02). The BMI distribution was right-skewed, with a small number of participants having substantially higher BMI values.\
+\
+
+```{r}
+#| fig-width: 5.5
+#| fig-height: 2.8
+#| fig-align: center
+
+sleep_summary <- nhanes_eda %>%
+  filter(!is.na(SleepHrsNight), !is.na(BMI)) %>%
+  group_by(Gender, SleepHrsNight) %>%
+  summarise(
+    Mean_BMI = mean(BMI),
+    N = n(),
+    .groups = "drop"
+  )
+
+ggplot(
+  sleep_summary,
+  aes(
+    x = SleepHrsNight,
+    y = Mean_BMI,
+    color = Gender,
+    group = Gender
+  )
+) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  labs(
+    title = "Mean BMI by Sleep Duration and Gender",
+    x = "Usual Sleep Duration on Weeknights (hours)",
+    y = "Mean Body Mass Index (kg/m²)",
+    color = "Gender"
+  ) +
+  theme_minimal()
+```
+
+Mean BMI varies across reported sleep durations for both genders. The observed patterns differ between men and women, suggesting that gender may modify the association between sleep duration and BMI. However, estimates at extreme sleep durations may be unstable because of smaller group sizes. These descriptive patterns do not establish a statistically significant interaction.
+
+```{r}
+table1 <- nhanes_eda %>%
+  group_by(Gender) %>%
+  summarise(
+    N = n(),
+    Mean_Age = mean(Age, na.rm = TRUE),
+    Mean_BMI = mean(BMI, na.rm = TRUE),
+    SD_BMI = sd(BMI, na.rm = TRUE),
+    Mean_Sleep = mean(SleepHrsNight, na.rm = TRUE),
+    Physically_Active_Pct = 100 * mean(
+      PhysActive == "Yes", na.rm = TRUE
+    ),
+    Diabetes_Pct = 100 * mean(
+      Diabetes == "Yes", na.rm = TRUE
+    ),
+    .groups = "drop"
+  )
+
+knitr::kable(
+  table1,
+  digits = 2,
+  col.names = c(
+    "Gender", "N", "Mean Age", "Mean BMI",
+    "BMI SD", "Mean Sleep", "Active (%)", "Diabetes (%)"
+  ),
+  caption = "Selected Participant Characteristics by Gender"
+)
+```
+
+Table 2 summarizes selected participant characteristics by gender. Female participants had a slightly higher mean BMI (29.16 vs. 28.63 kg/m²) and reported slightly longer sleep duration (6.93 vs. 6.80 hours) than male participants. Men reported higher levels of physical activity (53.94% vs. 47.75%) and a slightly higher prevalence of diagnosed diabetes (12.40% vs. 11.06%).\
+\
+
+```{r}
+#| fig-width: 5.5
+#| fig-height: 2.8
+#| fig-align: center
+
+ggplot(
+  nhanes_eda %>% filter(!is.na(Diabetes), !is.na(BMI)),
+  aes(x = Diabetes, y = BMI, fill = Gender)
+) +
+  geom_boxplot(
+    position = position_dodge(width = 0.8),
+    outlier.alpha = 0.2,
+    na.rm = TRUE
+  ) +
+  labs(
+    title = "BMI by Diabetes Diagnosis and Gender",
+    x = "Reported Diabetes Diagnosis",
+    y = "Body Mass Index (kg/m²)",
+    fill = "Gender"
+  ) +
+  theme_minimal()
+```
+
+The boxplots compare BMI distributions between participants with and without a reported diabetes diagnosis, separately by gender. This descriptive comparison provides an initial view of the relationship between BMI and diabetes status. Any observed differences will require further assessment through the proposed logistic regression model.
 
 \newpage
 
@@ -233,6 +386,14 @@ Describe the observation units and how the data were collected.
 
 ## Team Charter
 
-1.  When will you meet as a team to work on the project components? Will these meetings be held in person or virtually?
-2.  What is your group policy on missing team meetings (e.g., how much advance notice should be provided)?
-3.  How will your team communicate (email, Slack, text messages)? What is your policy on appropriate response time (within a certain number of hours? Nights/weekends?)?
+**1. Team Meetings**
+
+We will meet virtually as needed to discuss project progress, coordinate tasks, and review our work together.
+
+**2. Missing Meetings**
+
+Team members should notify the group at least two days in advance if they cannot attend a scheduled meeting.
+
+**3. Communication and Response Time**
+
+We will primarily communicate through WeChat. Team members are expected to respond to messages by the evening of the following day, including weekends when necessary.
