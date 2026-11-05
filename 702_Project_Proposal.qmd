@@ -1,7 +1,10 @@
 ---
 title: "IDS 702 Project Proposal"
 author: "Andy Zhou; Shenghuan Wang; Chien Zhang"
-format: pdf
+format:
+  pdf:
+    fig-pos: 'H'
+    tbl-pos: 'H'
 editor: visual
 execute:
   echo: FALSE
@@ -152,8 +155,6 @@ We will use the Hosmer--Lemeshow test as one check of model fit. Because its res
 \newpage
 
 #### Exploratory Data Analysis
-
-*First, provide a snapshot of the data using the glimpse function or something similar. Then, present your EDA according to your SAP above. At minimum, you should present basic characteristics of your outcome alone (descriptive statistics and a plot) and at least one key relationship of interest, but the EDA should not exceed 3 pages. It may be useful to present a "Table 1" that gives descriptive statistics for several variables of interest. You are not required to complete data cleaning for the EDA.*
 
 ```{r}
 library(NHANES)
@@ -446,6 +447,7 @@ In the final report, we will present the exponentiated model coefficients (odds 
 
 ```{r}
 #| label: setup-rdu-data
+#| results: hide
 library(data.table)
 library(dplyr)
 library(ggplot2)
@@ -564,14 +566,17 @@ rdu_delay %>%
 ```
 
 ```{r}
-#| label: tbl-rdu-snapshot
-# Snapshot of the imported data and the variables in our study.
+#| label: rdu-snapshot
+
+# Snapshot of the imported data and variables in our study
 glimpse(
   rdu_all %>%
-    select(FlightDate, Month, DayOfWeek, Reporting_Airline,
-           Origin, Dest, CRSDepTime, DepDel15, DepDelay,
-           Distance, Cancelled, Diverted),
-  width = 65
+    select(
+      FlightDate, Month, DayOfWeek, Reporting_Airline,
+      Origin, Dest, CRSDepTime, DepDel15, DepDelay,
+      Distance, Cancelled, Diverted
+    ),
+  width = 55
 )
 ```
 
@@ -614,8 +619,8 @@ knitr::kable(delay_overview, digits = 1, format.args = list(big.mark = ","))
 ```{r}
 #| label: fig-rdu-delay-outcome
 #| fig-cap: "Departure-delay status among eligible flights from RDU, July–August 2026"
-#| fig-width: 5.9
-#| fig-height: 2.9
+#| fig-width: 5.5
+#| fig-height: 2.5
 #| fig-align: center
 
 rdu_delay %>%
@@ -651,8 +656,8 @@ knitr::kable(period_display, digits = 1,
 ```{r}
 #| label: fig-rdu-period
 #| fig-cap: "Percentage of flights departing 15 or more minutes late, by scheduled departure period"
-#| fig-width: 5.9
-#| fig-height: 2.9
+#| fig-width: 5.5
+#| fig-height: 2.5
 #| fig-align: center
 
 ggplot(period_summary,
@@ -669,8 +674,8 @@ ggplot(period_summary,
 ```{r}
 #| label: fig-rdu-airlines
 #| fig-cap: "Departure-delay rates by time of day for the five most frequent reporting airlines at RDU"
-#| fig-width: 6.0
-#| fig-height: 3.6
+#| fig-width: 5.5
+#| fig-height: 3.0
 #| fig-align: center
 
 # Display the five most common operating airlines to keep the plot readable.
@@ -700,7 +705,9 @@ ggplot(airline_period,
   theme(legend.position = "bottom")
 ```
 
-The EDA will show the actual number of eligible flights and the observed departure-delay rates after the official data files are downloaded and the QMD is rendered. Differences in these descriptive rates may suggest a pattern worth examining, but they will not by themselves establish a statistically significant difference or a causal relationship.
+Among the 9,120 eligible RDU flights, approximately 27.2% departed at least 15 minutes late. The observed delay rate increased from 14.0% in the morning to 35.7% in the afternoon and 47.4% in the evening. Delay patterns also varied across airlines. These descriptive findings suggest that departure period and airline may be associated with delay risk, but further statistical modeling is needed to evaluate these relationships.\
+\
+\newpage
 
 ## Team Charter
 
