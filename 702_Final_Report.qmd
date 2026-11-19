@@ -1,0 +1,33 @@
+
+---
+title: "Flight Departure Delays at Raleigh-Durham International Airport"
+subtitle: "Andy Zhou, Shenghuan Wang, Chien Zhang"
+format: pdf
+execute:
+  echo: false
+  message: false
+  warning: false
+editor: visual
+---
+
+# Data Science Memo
+
+## Executive Summary
+
+## Background
+
+## Key Findings
+
+## Recommendations and Limitations
+
+# Technical Appendix
+
+## Data Preparation
+
+## Statistical Modeling
+
+## Model Results
+
+## Model Assessment and Diagnostics
+
+## Limitations
