@@ -1,4 +1,3 @@
-
 ---
 title: "Flight Departure Delays at Raleigh-Durham International Airport"
 subtitle: "Andy Zhou, Shenghuan Wang, Chien Zhang"
@@ -9,6 +8,181 @@ execute:
   warning: false
 editor: visual
 ---
+
+```{r}
+#| label: fit-flight-models
+#| include: false
+
+# 01_modeling.R — Data preparation & logistic regression
+library(data.table)
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(broom)
+library(emmeans)
+options(timeout = 600)
+
+# 1. Load data 
+data_dir <- file.path("data", "bts_2026")
+dir.create(data_dir, showWarnings = FALSE, recursive = TRUE)
+
+fields_needed <- c(
+  "Year", "Month", "DayofMonth", "DayOfWeek", "FlightDate",
+  "Reporting_Airline", "Flight_Number_Reporting_Airline",
+  "Origin", "Dest", "CRSDepTime", "DepTime", "DepDelay",
+  "DepDel15", "Cancelled", "Diverted", "Distance",
+  "CRSElapsedTime", "ArrDel15", "ArrDelay"
+)
+
+read_rdu_month <- function(month_number) {
+  file_name <- paste0(
+    "On_Time_Reporting_Carrier_On_Time_Performance_1987_present_2026_",
+    month_number, ".zip"
+  )
+  zip_path <- file.path(data_dir, file_name)
+  url <- paste0("https://transtats.bts.gov/PREZIP/", file_name)
+  
+  if (!file.exists(zip_path)) {
+    download.file(url, destfile = zip_path, mode = "wb", quiet = TRUE)
+  }
+  
+  zip_contents <- unzip(zip_path, list = TRUE)$Name
+  csv_files <- zip_contents[grepl("\\.csv$", zip_contents, ignore.case = TRUE)]
+  if (length(csv_files) < 1) {
+    stop("No CSV found in BTS ZIP for month ", month_number)
+  }
+  
+  # Work with one month's data at a time to keep memory use lower.
+  extract_dir <- file.path(tempdir(), paste0("bts_month_", month_number))
+  dir.create(extract_dir, showWarnings = FALSE, recursive = TRUE)
+  csv_path <- unzip(zip_path, files = csv_files[1], exdir = extract_dir)[1]
+  
+  # Check that the required columns exist
+  actual_fields <- names(
+    data.table::fread(csv_path, nrows = 0)
+  )
+  
+  missing_fields <- setdiff(fields_needed, actual_fields)
+  
+  if (length(missing_fields) > 0) {
+    stop(
+      "Missing BTS columns: ",
+      paste(missing_fields, collapse = ", ")
+    )
+  }
+  
+  flight_data <- data.table::fread(
+    csv_path, select = fields_needed,
+    na.strings = c("", "NA"), showProgress = FALSE
+  )
+  unlink(extract_dir, recursive = TRUE)
+  
+  as_tibble(flight_data) %>%
+    filter(Origin == "RDU")
+}
+
+rdu_all <- bind_rows(lapply(c(7, 8), read_rdu_month))
+
+if (nrow(rdu_all) < 300) {
+  stop("The RDU subset has fewer than 300 records; please review the source files.")
+}
+
+rdu_eda <- rdu_all %>%
+  mutate(
+    departure_hour = floor(as.numeric(CRSDepTime) / 100),
+    departure_period = case_when(
+      between(departure_hour, 5, 11) ~ "Morning",
+      between(departure_hour, 12, 17) ~ "Afternoon",
+      between(departure_hour, 18, 23) ~ "Evening",
+      TRUE ~ NA_character_
+    ),
+    departure_period = factor(
+      departure_period, levels = c("Morning", "Afternoon", "Evening")
+    )
+  )
+
+rdu_delay <- rdu_eda %>%
+  filter(Cancelled == 0,
+         !is.na(DepDel15),
+         !is.na(departure_period)) %>%
+  mutate(delayed_15 = as.integer(DepDel15))
+
+if (nrow(rdu_delay) < 300) {
+  stop("The eligible RDU delay sample has fewer than 300 flights.")
+}
+
+# 2. Sample flow (for Technical Appendix)
+sample_flow <- tibble(
+  Step = c(
+    "All RDU departures, Jul-Aug 2026",
+    "Excluded: canceled",
+    "Excluded: operated but missing delay indicator",
+    "Excluded: outside study periods",
+    "Final analytic sample"
+  ),
+  Flights = c(
+    nrow(rdu_eda),
+    sum(rdu_eda$Cancelled == 1, na.rm = TRUE),
+    sum(rdu_eda$Cancelled == 0 & is.na(rdu_eda$DepDel15)),
+    sum(rdu_eda$Cancelled == 0 & !is.na(rdu_eda$DepDel15) &
+          is.na(rdu_eda$departure_period)),
+    nrow(rdu_delay)
+  )
+)
+print(sample_flow)
+
+# 3. Check airline group sizes
+# Total Number of Flights by Each Airline
+rdu_delay %>%
+  count(Reporting_Airline, sort = TRUE) %>%
+  print(n = Inf)
+
+# Airline × Time Period: Number of Flights and Number of Delays
+rdu_delay %>%
+  group_by(Reporting_Airline, departure_period) %>%
+  summarise(flights = n(),
+            delayed = sum(delayed_15),
+            .groups = "drop") %>%
+  pivot_wider(names_from = departure_period,
+              values_from = c(flights, delayed),
+              values_fill = 0) %>%
+  print(n = Inf, width = Inf)
+
+# 4. Recode variables for modeling
+main_airlines <- c("DL", "AA", "WN", "YX", "UA", "F9", "B6")
+
+model_data <- rdu_delay %>%
+  mutate(
+    airline = if_else(Reporting_Airline %in% main_airlines,
+                      Reporting_Airline, "Other"),
+    airline = factor(
+      airline,
+      levels = c(main_airlines, "Other"),   # First = Reference Group (DL)
+      labels = c("Delta", "American", "Southwest", "Republic",
+                 "United", "Frontier", "JetBlue", "Other")
+    ),
+    distance100 = Distance / 100,
+    month = factor(Month, levels = c(7, 8),
+                   labels = c("July", "August")),
+    day_of_week = factor(DayOfWeek, levels = 1:7,
+                         labels = c("Monday", "Tuesday", "Wednesday",
+                                    "Thursday", "Friday", "Saturday",
+                                    "Sunday"))
+  )
+
+table(model_data$airline, model_data$departure_period)
+
+# 5. Fit models
+# m0: main effects only
+m0 <- glm(delayed_15 ~ departure_period + airline + distance100 +
+            month + day_of_week,
+          family = binomial, data = model_data)
+
+# m1: with departure period x airline interaction (primary model)
+m1 <- glm(delayed_15 ~ departure_period * airline + distance100 +
+            month + day_of_week,
+          family = binomial, data = model_data)
+```
 
 # Data Science Memo
 
@@ -24,10 +198,245 @@ editor: visual
 
 ## Data Preparation
 
+We used the U.S. Bureau of Transportation Statistics’ monthly Reporting Carrier On-Time Performance records for July and August 2026. Each record represented one scheduled domestic nonstop flight departing from Raleigh–Durham International Airport (RDU). Of 9,436 scheduled departures, 316 were canceled. All remaining flights had a recorded departure-delay indicator and a scheduled departure time within one of the three study periods. The resulting 9,120 flights covered 62 dates, with no missing flight dates. Both regression models used all 9,120 flights.
+
+We classified a flight as delayed if it departed at least 15 minutes after its scheduled departure time. We grouped flights by scheduled local departure time: morning (5:00–11:59 a.m.), afternoon (noon–5:59 p.m.), and evening (6:00–11:59 p.m.). Seven reporting airlines were modeled individually. We pooled PSA, Alaska, Envoy, and SkyWest into an “Other” category because some of their time-period groups contained few flights. For example, SkyWest had only four evening departures during the study period.
+
 ## Statistical Modeling
+
+We fitted a logistic regression model for the probability of a departure delay of at least 15 minutes. The main predictors were scheduled departure period and reporting airline. We adjusted for flight distance in 100-mile units, day of the week, and month. Morning, Delta, Monday, and July were the reference categories.
+
+We compared a main-effects model, which assumed a common time-of-day association across airlines, with a model that included a departure-period-by-airline interaction. The interaction allowed each airline to have its own afternoon-to-morning and evening-to-morning odds ratios. We evaluated the 14 interaction coefficients jointly using a likelihood ratio test and compared the two models using Akaike’s information criterion (AIC). To interpret the interaction, we calculated adjusted odds ratios comparing departure periods within each airline.
 
 ## Model Results
 
+Among the 9,120 eligible flights, 2,480 (27.2%) departed at least 15 minutes late. The observed delay rate was 14.0% in the morning (628 of 4,487 flights), 35.7% in the afternoon (1,046 of 2,933), and 47.4% in the evening (806 of 1,700).
+
+Adding the interaction improved model fit (likelihood ratio χ² = 121.03, 14 df, p < 0.001). AIC decreased from 9,607.09 to 9,514.05. We therefore retained the interaction. All eight airline groups had higher adjusted odds of delay in the evening than in the morning, although the magnitude varied. The evening-to-morning odds ratio was 5.42 for Delta and 22.78 for Southwest. These estimates compare evening and morning flights within the same airline at the same modeled distance, day of the week, and month.
+
+The complete model estimates are reported in @tbl-full-model.
+
 ## Model Assessment and Diagnostics
 
-## Limitations
+```{r}
+#| label: run-model-diagnostics
+#| include: false
+
+# # Run scripts/01_modeling.R first in the same R session.
+library(dplyr)
+
+# Check the airline-by-period groups used in the interaction model.
+cell_counts <- model.frame(m1) |>
+  group_by(airline, departure_period, .drop = FALSE) |>
+  summarise(
+    flights = n(),
+    delayed = sum(delayed_15 == 1),
+    under_15_min = sum(delayed_15 == 0),
+    .groups = "drop"
+  ) |>
+  arrange(flights)
+
+print(cell_counts, n = Inf)
+
+# Flag groups with fewer than five flights in either outcome category.
+small_cells <- cell_counts |>
+  filter(delayed < 5 | under_15_min < 5)
+
+print(small_cells, n = Inf)
+
+# Check whether a nonlinear distance term improves model fit.
+m_distance_spline <- update(
+  m1,
+  . ~ . - distance100 + splines::ns(distance100, df = 3),
+  data = model_data
+)
+
+print(c(linear = nobs(m1), spline = nobs(m_distance_spline)))
+print(anova(m1, m_distance_spline, test = "Chisq"))
+print(AIC(m1, m_distance_spline))
+
+# Compare predicted and observed delay rates in ten risk groups.
+calibration_table <- tibble::tibble(
+  predicted = fitted(m1),
+  delayed = model.response(model.frame(m1))
+) |>
+  mutate(risk_group = ntile(predicted, 10)) |>
+  group_by(risk_group) |>
+  summarise(
+    flights = n(),
+    predicted_pct = 100 * mean(predicted),
+    observed_pct = 100 * mean(delayed),
+    .groups = "drop"
+  ) |>
+  mutate(gap_pp = observed_pct - predicted_pct)
+
+print(calibration_table, n = Inf)
+
+# Sensitivity of evening-to-morning odds ratios to influential flights.
+fit_data <- model.frame(m1)
+cook_d <- cooks.distance(m1)
+top_five <- head(order(cook_d, decreasing = TRUE), 5)
+
+influence_table <- fit_data[top_five, c("airline", "departure_period", "delayed_15")]
+influence_table$cooks_d <- round(unname(cook_d[top_five]), 5)
+print(influence_table)
+
+m_without_five <- update(m1, data = fit_data[-top_five, , drop = FALSE])
+
+# Factor order in the fitted model is Morning, Afternoon, Evening.
+stopifnot(identical(levels(fit_data$departure_period),
+                    c("Morning", "Afternoon", "Evening")))
+
+evening_or <- function(model) {
+  means <- emmeans::emmeans(model, ~ departure_period | airline)
+  comparison <- emmeans::contrast(
+    means, method = list("Evening vs Morning" = c(-1, 0, 1))
+  )
+  as.data.frame(summary(comparison, type = "response")) |>
+    select(airline, odds.ratio)
+}
+
+influence_comparison <- evening_or(m1) |>
+  rename(full_OR = odds.ratio) |>
+  left_join(
+    rename(evening_or(m_without_five), reduced_OR = odds.ratio),
+    by = "airline"
+  ) |>
+  mutate(change_pct = 100 * (reduced_OR / full_OR - 1)) |>
+  arrange(desc(abs(change_pct)))
+
+print(c(full = nobs(m1), without_five = nobs(m_without_five)))
+print(as.data.frame(influence_comparison), digits = 4, row.names = FALSE)
+
+
+# Allow flights on the same date to have correlated outcomes.
+stopifnot(
+  nobs(m1) == nrow(model_data),
+  !anyNA(model_data$FlightDate)
+)
+
+date_vcov <- sandwich::vcovCL(
+  m1, cluster = model_data$FlightDate, type = "HC1"
+)
+
+# Compare evening vs morning within each airline using both sets of SEs.
+evening_ci <- function(covariance) {
+  means <- emmeans::emmeans(
+    m1, ~ departure_period | airline, vcov. = covariance
+  )
+  comparison <- emmeans::contrast(
+    means, method = list("Evening vs Morning" = c(-1, 0, 1))
+  )
+  as.data.frame(confint(comparison, level = 0.95, type = "response")) |>
+    select(airline, odds.ratio, asymp.LCL, asymp.UCL)
+}
+
+ordinary_ci <- evening_ci(vcov(m1)) |>
+  rename(OR = odds.ratio, ordinary_low = asymp.LCL, ordinary_high = asymp.UCL)
+
+clustered_ci <- evening_ci(date_vcov) |>
+  select(airline, clustered_low = asymp.LCL, clustered_high = asymp.UCL)
+
+ci_comparison <- left_join(ordinary_ci, clustered_ci, by = "airline")
+print(as.data.frame(ci_comparison), digits = 4, row.names = FALSE)
+
+# Joint Wald test of all 14 airline-by-period interaction coefficients.
+interaction_rows <- grep(":", names(coef(m1)), fixed = TRUE)
+restrictions <- diag(length(coef(m1)))[interaction_rows, , drop = FALSE]
+colnames(restrictions) <- names(coef(m1))
+
+print(car::linearHypothesis(
+  m1, restrictions, vcov. = date_vcov, test = "Chisq"
+))
+
+
+# Check convergence and whether all coefficients were estimated.
+fit_checks <- data.frame(
+  converged = m1$converged,
+  model_rank = m1$rank,
+  total_coefficients = length(coef(m1)),
+  missing_coefficients = sum(is.na(coef(m1)))
+)
+print(fit_checks)
+
+# Check collinearity among the predictors before adding interactions.
+vif_table <- car::vif(m0)
+print(round(vif_table, 3))
+```
+
+**Group sizes and model estimation.** Each of the 24 airline-by-period groups contained flights in both outcome categories. The smallest group was United’s evening departures: 22 of 39 flights were delayed by at least 15 minutes. The interaction model converged and had full rank, with all 32 coefficients estimated. In the main-effects model, generalized variance inflation factors adjusted for each term’s degrees of freedom ranged from 1.002 to 1.034, indicating little collinearity among the main predictors.
+
+**Functional form and calibration.** We assessed the linear distance term by replacing it with a natural spline with three degrees of freedom. The spline offered little improvement in fit (likelihood ratio χ² = 2.32, 2 df, p = 0.313), and AIC was slightly lower for the linear specification (9,514.05 vs. 9,515.73). We retained the linear distance term. To assess calibration in the analysis sample, we divided flights into ten groups of 912 according to predicted delay probability. The largest absolute gap between mean predicted and observed delay rates was 2.48 percentage points, in a group with a predicted rate of 16.6% and an observed rate of 14.1%. In the highest-risk group, the corresponding rates were 59.0% and 58.3%.
+
+@fig-delay-calibration compares predicted and observed delay rates across ten equally sized groups of flights.
+
+```{r}
+#| label: fig-delay-calibration
+#| fig-cap: "Observed and predicted departure-delay rates at RDU, July–August 2026. Each point represents 912 flights grouped by predicted risk. The dashed line indicates exact agreement."
+#| fig-width: 5
+#| fig-height: 3.5
+
+ggplot2::ggplot(
+  calibration_table,
+  ggplot2::aes(x = predicted_pct, y = observed_pct)
+) +
+  ggplot2::geom_abline(slope = 1, intercept = 0,
+                       linetype = "dashed", color = "grey55") +
+  ggplot2::geom_point(size = 2.5, color = "#245581") +
+  ggplot2::coord_equal(xlim = c(0, 65), ylim = c(0, 65)) +
+  ggplot2::labs(
+    x = "Mean predicted delay rate (%)",
+    y = "Observed delay rate (%)"
+  ) +
+  ggplot2::theme_minimal(base_size = 11)
+```
+
+**Influential observations.** The five flights with the largest Cook’s distances were all United evening departures that fell below the 15-minute delay threshold. Temporarily excluding them increased United’s adjusted evening-to-morning odds ratio from 5.98 to 8.90, a 48.7% increase. The corresponding estimates for each of the other seven airline groups changed by less than 0.05%. We retained all 9,120 flights in the primary model. United’s small evening sample warrants caution when interpreting the magnitude of its estimate.
+
+**Dependence within flight dates.** Flights on the same day may share weather or operating conditions. We therefore recalculated uncertainty using cluster-robust standard errors by flight date. Across 62 dates, the joint Wald test continued to support the departure-period-by-airline interaction (χ² = 151.28, 14 df, p < 0.001). The date-clustered 95% confidence intervals for the evening-to-morning odds ratios were 3.77–7.79 for Delta, 16.14–32.15 for Southwest, and 2.93–12.21 for United. All eight airline groups had individual date-clustered intervals above 1.
+
+## Limitations and Next Steps
+
+The analysis covers one airport and two summer months. It describes departure delays among flights that operated; the 316 cancellations represent a separate type of disruption. The pooled “Other” category also combines airlines whose operating patterns may differ. Weather, congestion, crew availability, and delays affecting incoming aircraft could contribute to the observed associations. Clustering by date accounts for within-day dependence in the uncertainty estimates, but does not identify the causes of the delays.
+
+A next step would be to link flights to hourly weather and incoming-aircraft records to examine how much of the evening pattern is associated with disruptions earlier in the day. Adding other seasons would allow us to evaluate whether the airline-specific patterns persist and to check calibration on flights outside the original analysis period.
+
+
+# Supplementary Appendix
+
+```{r}
+#| label: tbl-full-model
+#| tbl-cap: "Full logistic regression model for departure delays of at least 15 minutes. Confidence intervals and standard errors are model-based."
+
+coef_results <- broom::tidy(m1, conf.int = TRUE)
+
+term_labels <- function(term) {
+  term <- sub("^\\(Intercept\\)$", "Intercept (baseline odds)", term)
+  term <- gsub("departure_period", "", term, fixed = TRUE)
+  term <- gsub("airline", "", term, fixed = TRUE)
+  term <- gsub("day_of_week", "", term, fixed = TRUE)
+  term <- gsub("month", "", term, fixed = TRUE)
+  term <- sub("^distance100$", "Distance (per 100 miles)", term)
+  gsub(":", " by ", term, fixed = TRUE)
+}
+
+model_table <- coef_results |>
+  dplyr::transmute(
+    Term = term_labels(term),
+    Estimate = exp(estimate),
+    `SE (exp. scale)` = exp(estimate) * std.error,
+    `95% CI` = sprintf("%.2f to %.2f", exp(conf.low), exp(conf.high)),
+    `p-value` = format.pval(p.value, digits = 3, eps = 0.001)
+  )
+
+knitr::kable(
+  model_table,
+  format = "latex",
+  longtable = TRUE,
+  booktabs = TRUE,
+  digits = 2,
+  row.names = FALSE
+)
+```
+
+Estimates are on the exponential scale. The intercept gives the baseline odds. Interaction terms give ratios of odds ratios. Standard errors on the exponential scale were calculated using the delta method. Reference categories were morning, Delta, July, and Monday. Date-clustered sensitivity results are reported in the technical appendix.
